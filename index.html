@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Murino FM — Radio</title>
+<title>Murino FM</title>
 
 <style>
 body {
@@ -16,12 +16,9 @@ body {
     align-items: center;
 }
 
-h1 {
-    margin: 40px 0 5px;
-    font-weight: 500;
-}
+h1 { margin: 40px 0 10px; }
 
-#currentTrack {
+#current {
     opacity: 0.7;
     margin-bottom: 15px;
 }
@@ -39,121 +36,116 @@ button {
     border-radius: 12px;
     cursor: pointer;
     transition: 0.2s;
-    font-size: 16px;
 }
 
-button:hover {
-    background: #ff5500;
-}
-
-#playlist {
-    width: 90%;
-    max-width: 500px;
-    margin-top: 10px;
-}
+button:hover { background: #ff5500; }
 
 .track {
-    padding: 12px;
-    margin: 6px 0;
+    padding: 10px;
+    margin: 5px 0;
     background: #1a1a1a;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: 0.2s;
 }
 
 .track.active {
     background: #ff5500;
 }
 
-iframe {
-    display: none; /* скрываем оригинальный плеер */
+iframe { display: none; }
+#playlist {
+    width: 90%;
+    max-width: 500px;
 }
 </style>
 </head>
 <body>
 
 <h1>🎧 Murino FM</h1>
-<div id="currentTrack">Загрузка...</div>
+<div id="current">Загрузка...</div>
 
 <div class="controls">
-    <button id="prev">⏮</button>
-    <button id="play">▶️</button>
-    <button id="next">⏭</button>
+    <button onclick="prev()">⏮</button>
+    <button onclick="toggle()">▶️</button>
+    <button onclick="next()">⏭</button>
 </div>
 
-<iframe 
-    id="sc-player"
-    width="0"
-    height="0"
-    allow="autoplay"
-    src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/ivan-bastrikov-sergeevich/sets/murino-fm&auto_play=false&show_artwork=false&visual=false&show_comments=false&show_user=false&show_reposts=false">
-</iframe>
+<iframe id="player"></iframe>
 
 <div id="playlist"></div>
 
 <script src="https://w.soundcloud.com/player/api.js"></script>
 <script>
-const widget = SC.Widget(document.getElementById('sc-player'));
-const playlistDiv = document.getElementById("playlist");
-const currentTrackDiv = document.getElementById("currentTrack");
+const tracks = [
+    "https://soundcloud.com/maj-boj/murino-fm-mp3?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/ivan-bastrikov-sergeevich/morgenshtern-novyj-am?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/ivan-bastrikov-sergeevich/murino-fm-bem-bem-bystree?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/prodsekmese/big-baby-tape-surname-featmellstroy?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/luntik-luntik-996879468/bem-bem-bem-mellstroy-mellstroy?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/gothesy/overdoz-ch?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/prodsekmese/tyomnyy-drun-vklube-feat-mellstroy?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/smokey-pimp-976499330/melstroj-am-am-am-super-remiks?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/again634/temnyy-drun-temnyy-prints-mellstroy?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/maj-boj/krei-zi-drun-mp3?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/again634/vklube-drun-temnyy-prints-i-mellstroy?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/ansk231/temnyj-drun-pokoj?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/deaatthhlooooooops/poshlaya-molli-x-mellstroj?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/again634/trupnyy-yad-mellstroy-temnyy-prints-fit?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/intekgrupp-svetlana/br-br-bam-bam-bam-mellstroj?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/borovmellstroy/mannequin-slivy-remiks?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "https://soundcloud.com/mellstroy-123123123/labuteny-allakha?in=ivan-bastrikov-sergeevich/sets/murino-fm",
+    "URL_18"
+];
 
-let tracks = [];
-let currentIndex = 0;
+let current = 0;
+let widget;
 let isPlaying = false;
 
-widget.bind(SC.Widget.Events.READY, function() {
-    widget.getSounds(function(sounds) {
-        tracks = sounds;
+const iframe = document.getElementById("player");
 
-        sounds.forEach((track, index) => {
-            const div = document.createElement("div");
-            div.classList.add("track");
-            div.textContent = track.title;
+function loadTrack(index, autoplay = true) {
+    current = index;
 
-            div.addEventListener("click", () => {
-                widget.skip(index);
-                widget.play();
-            });
+    iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(tracks[index])}&auto_play=${autoplay}&show_artwork=false&show_comments=false&show_user=false&visual=false`;
 
-            playlistDiv.appendChild(div);
+    widget = SC.Widget(iframe);
+
+    widget.bind(SC.Widget.Events.READY, function() {
+        widget.getCurrentSound(sound => {
+            document.getElementById("current").textContent = sound.title;
         });
     });
-});
 
-widget.bind(SC.Widget.Events.PLAY, function() {
-    isPlaying = true;
-    document.getElementById("play").textContent = "⏸";
-    widget.getCurrentSound(function(sound) {
-        currentIndex = tracks.findIndex(t => t.id === sound.id);
-        updateUI(sound.title);
-    });
-});
-
-widget.bind(SC.Widget.Events.PAUSE, function() {
-    isPlaying = false;
-    document.getElementById("play").textContent = "▶️";
-});
-
-widget.bind(SC.Widget.Events.FINISH, function() {
-    widget.next(); // автопереход
-});
-
-function updateUI(title) {
-    currentTrackDiv.textContent = title;
-
-    document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
-    if (playlistDiv.children[currentIndex]) {
-        playlistDiv.children[currentIndex].classList.add('active');
-    }
+    updatePlaylistUI();
 }
 
-document.getElementById("play").addEventListener("click", () => {
+function updatePlaylistUI() {
+    document.querySelectorAll(".track").forEach((el, i) => {
+        el.classList.toggle("active", i === current);
+    });
+}
+
+function next() {
+    current = (current + 1) % tracks.length;
+    loadTrack(current);
+}
+
+function prev() {
+    current = (current - 1 + tracks.length) % tracks.length;
+    loadTrack(current);
+}
+
+function toggle() {
+    if (!widget) return;
     if (isPlaying) widget.pause();
     else widget.play();
-});
+}
 
-document.getElementById("next").addEventListener("click", () => widget.next());
-document.getElementById("prev").addEventListener("click", () => widget.prev());
+document.getElementById("playlist").innerHTML = tracks.map((_, i) =>
+    `<div class="track" onclick="loadTrack(${i})">Трек ${i+1}</div>`
+).join("");
+
+loadTrack(0, false);
 </script>
 
 </body>
