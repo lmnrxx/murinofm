@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Murino FM</title>
+<title>Murino FM — Radio</title>
 
 <style>
 body {
@@ -17,23 +17,29 @@ body {
 }
 
 h1 {
-    margin: 40px 0 10px;
+    margin: 40px 0 5px;
     font-weight: 500;
 }
 
+#currentTrack {
+    opacity: 0.7;
+    margin-bottom: 15px;
+}
+
 .controls {
-    margin: 15px 0;
+    margin: 10px 0 20px;
 }
 
 button {
     background: #1a1a1a;
     border: none;
     color: white;
-    padding: 10px 18px;
-    margin: 0 5px;
-    border-radius: 10px;
+    padding: 12px 20px;
+    margin: 0 6px;
+    border-radius: 12px;
     cursor: pointer;
     transition: 0.2s;
+    font-size: 16px;
 }
 
 button:hover {
@@ -43,14 +49,16 @@ button:hover {
 #playlist {
     width: 90%;
     max-width: 500px;
-    margin-top: 20px;
+    margin-top: 10px;
 }
 
 .track {
     padding: 12px;
-    margin: 8px 0;
+    margin: 6px 0;
     background: #1a1a1a;
     border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
 }
 
 .track.active {
@@ -58,76 +66,90 @@ button:hover {
 }
 
 iframe {
-    margin-top: 20px;
-    border-radius: 12px;
+    display: none; /* скрываем оригинальный плеер */
 }
 </style>
 </head>
 <body>
 
 <h1>🎧 Murino FM</h1>
+<div id="currentTrack">Загрузка...</div>
 
 <div class="controls">
-    <button id="prev">⏮ Назад</button>
-    <button id="next">⏭ Вперёд</button>
+    <button id="prev">⏮</button>
+    <button id="play">▶️</button>
+    <button id="next">⏭</button>
 </div>
 
 <iframe 
     id="sc-player"
-    width="90%" 
-    height="300" 
-    scrolling="no" 
-    frameborder="no" 
+    width="0"
+    height="0"
     allow="autoplay"
-    src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/ivan-bastrikov-sergeevich/sets/murino-fm&color=%23ff5500&auto_play=false&show_comments=false&show_user=true&show_reposts=false&show_teaser=false">
+    src="https://w.soundcloud.com/player/?url=https%3A//soundcloud.com/ivan-bastrikov-sergeevich/sets/murino-fm&auto_play=false&show_artwork=false&visual=false&show_comments=false&show_user=false&show_reposts=false">
 </iframe>
 
 <div id="playlist"></div>
 
 <script src="https://w.soundcloud.com/player/api.js"></script>
-<script src="https://w.soundcloud.com/player/api.js"></script>
 <script>
-const iframe = document.getElementById('sc-player');
-const widget = SC.Widget(iframe);
+const widget = SC.Widget(document.getElementById('sc-player'));
+const playlistDiv = document.getElementById("playlist");
+const currentTrackDiv = document.getElementById("currentTrack");
 
-const playlistDiv = document.getElementById('playlist');
 let tracks = [];
 let currentIndex = 0;
-
-function renderPlaylist() {
-    playlistDiv.innerHTML = "";
-
-    tracks.forEach((track, index) => {
-        const div = document.createElement("div");
-        div.classList.add("track");
-        div.textContent = track.title;
-
-        div.addEventListener("click", () => {
-            widget.skip(index);
-            widget.play();
-        });
-
-        playlistDiv.appendChild(div);
-    });
-}
+let isPlaying = false;
 
 widget.bind(SC.Widget.Events.READY, function() {
-    // ВАЖНО: получаем полный список через getSounds
     widget.getSounds(function(sounds) {
-        tracks = sounds || [];
-        renderPlaylist();
+        tracks = sounds;
+
+        sounds.forEach((track, index) => {
+            const div = document.createElement("div");
+            div.classList.add("track");
+            div.textContent = track.title;
+
+            div.addEventListener("click", () => {
+                widget.skip(index);
+                widget.play();
+            });
+
+            playlistDiv.appendChild(div);
+        });
     });
 });
 
 widget.bind(SC.Widget.Events.PLAY, function() {
+    isPlaying = true;
+    document.getElementById("play").textContent = "⏸";
     widget.getCurrentSound(function(sound) {
         currentIndex = tracks.findIndex(t => t.id === sound.id);
-
-        document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
-        if (playlistDiv.children[currentIndex]) {
-            playlistDiv.children[currentIndex].classList.add('active');
-        }
+        updateUI(sound.title);
     });
+});
+
+widget.bind(SC.Widget.Events.PAUSE, function() {
+    isPlaying = false;
+    document.getElementById("play").textContent = "▶️";
+});
+
+widget.bind(SC.Widget.Events.FINISH, function() {
+    widget.next(); // автопереход
+});
+
+function updateUI(title) {
+    currentTrackDiv.textContent = title;
+
+    document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
+    if (playlistDiv.children[currentIndex]) {
+        playlistDiv.children[currentIndex].classList.add('active');
+    }
+}
+
+document.getElementById("play").addEventListener("click", () => {
+    if (isPlaying) widget.pause();
+    else widget.play();
 });
 
 document.getElementById("next").addEventListener("click", () => widget.next());
